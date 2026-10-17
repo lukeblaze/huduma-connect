@@ -80,8 +80,9 @@ async function loadRequests() {
   } catch (error) {
     list.innerHTML = `<div class="empty-state"><span class="empty-icon">!</span><h3>Requests are temporarily unavailable</h3><p>${escapeHtml(error.message)} Please refresh and try again.</p></div>`;
   }
+}
 
-  async function loadAdmin() {
+async function loadAdmin() {
     if (!session || session.user?.email !== config.adminEmail) return;
     adminSection.hidden = false;
     try {
@@ -109,7 +110,7 @@ async function loadRequests() {
     }
   }
 
-  async function updateStatus(id, status) {
+async function updateStatus(id, status) {
     try {
       const response = await fetch(`/api/admin/requests?id=${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ status }) });
       if (!response.ok) throw new Error("Unable to update request status.");
@@ -119,7 +120,6 @@ async function loadRequests() {
       adminMessage.hidden = false;
       adminMessage.className = "form-message form-error";
       adminMessage.textContent = error.message;
-    }
   }
 }
 

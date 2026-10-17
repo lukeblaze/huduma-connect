@@ -98,7 +98,12 @@ async function uploadImages(images, reference) {
     const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
     const path = `requests/${reference}-${index + 1}.${extension}`;
     const response = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/request-images/${path}`, { method: "POST", headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": image.type, "x-upsert": "true" }, body: content });
-    if (!response.ok) throw new Error("IMAGE");
+    if (!response.ok) {
+      const storageError = await response.json().catch(() => ({}));
+      const error = new Error("IMAGE");
+      error.details = storageError.message || storageError.error || `Storage upload failed (${response.status}).`;
+      throw error;
+    }
     urls.push(`${process.env.SUPABASE_URL}/storage/v1/object/public/request-images/${path}`);
   }
   return urls;

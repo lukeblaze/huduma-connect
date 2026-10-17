@@ -267,7 +267,7 @@ document.querySelectorAll("[data-scroll]").forEach((button) => {
 });
 document.querySelector("#refresh-admin").addEventListener("click", loadAdmin);
 
-configReady = getConfig().then((value) => {
+configReady = getConfig().then(async (value) => {
   config = value;
   if (!config.url || !config.anonKey) throw new Error("Authentication configuration is incomplete.");
   await validateSession();

@@ -44,7 +44,12 @@ function setAuthState(nextSession) {
   form.closest(".section").hidden = !session;
   document.querySelector("#requests").hidden = !session;
   if (!session) adminSection.hidden = true;
-  if (session && session.user?.email === config.adminEmail) loadAdmin();
+  if (isAdminSession()) loadAdmin();
+}
+
+function isAdminSession() {
+  return Boolean(session?.user?.email && config?.adminEmail &&
+    session.user.email.trim().toLowerCase() === config.adminEmail.trim().toLowerCase());
 }
 
 function renderRequests(requests) {
@@ -83,7 +88,7 @@ async function loadRequests() {
 }
 
 async function loadAdmin() {
-    if (!session || session.user?.email !== config.adminEmail) return;
+    if (!isAdminSession()) return;
     adminSection.hidden = false;
     try {
       const headers = { Authorization: `Bearer ${session.access_token}` };

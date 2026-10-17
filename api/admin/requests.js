@@ -9,7 +9,7 @@ async function userFromToken(request) {
 }
 
 function requireAdmin(user) {
-  if (!process.env.ADMIN_EMAIL || user.email?.toLowerCase() !== process.env.ADMIN_EMAIL.toLowerCase()) throw new Error("FORBIDDEN");
+  if (!process.env.ADMIN_EMAIL || user.email?.trim().toLowerCase() !== process.env.ADMIN_EMAIL.trim().toLowerCase()) throw new Error("FORBIDDEN");
 }
 
 async function db(path, options = {}) {

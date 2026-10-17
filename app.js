@@ -8,6 +8,9 @@ const adminSection = document.querySelector("#admin");
 const adminList = document.querySelector("#admin-list");
 const analytics = document.querySelector("#analytics");
 const adminMessage = document.querySelector("#admin-message");
+const notificationSection = document.querySelector("#notifications");
+const notificationList = document.querySelector("#notification-list");
+const notificationCount = document.querySelector("#notification-count");
 const form = document.querySelector("#request-form");
 const list = document.querySelector("#request-list");
 const count = document.querySelector("#request-count");
@@ -43,6 +46,7 @@ function setAuthState(nextSession) {
   logoutButton.hidden = !session;
   form.closest(".section").hidden = !session;
   document.querySelector("#requests").hidden = !session;
+  notificationSection.hidden = !session;
   if (!session) adminSection.hidden = true;
   if (isAdminSession()) loadAdmin();
 }
@@ -81,6 +85,16 @@ function renderRequests(requests) {
     </article>`).join("");
 }
 
+function renderNotifications(requests, isAdmin = false) {
+  const notifications = requests.map((request) => ({
+    title: isAdmin ? `New request: ${request.title}` : `Request ${request.reference} updated`,
+    text: isAdmin ? `${request.category} request from ${request.location}.` : `Your request is currently ${request.status || "Pending"}.`,
+    status: request.status || "Pending"
+  }));
+  notificationCount.textContent = `${notifications.length} update${notifications.length === 1 ? "" : "s"}`;
+  notificationList.innerHTML = notifications.length ? notifications.map((item) => `<article class="notification-item"><span class="notification-icon">●</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.text)}</p></div><span class="request-status">${escapeHtml(item.status)}</span></article>`).join("") : '<div class="empty-state"><h3>No new notifications</h3><p>Updates about your requests will appear here.</p></div>';
+}
+
 function formatDate(value) {
   return new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -96,7 +110,9 @@ async function loadRequests() {
   try {
     const response = await fetch("/api/requests", { headers: { Authorization: `Bearer ${session.access_token}` } });
     if (!response.ok) throw new Error("Unable to load requests.");
-    renderRequests(await response.json());
+    const requests = await response.json();
+    renderRequests(requests);
+    if (!isAdminSession()) renderNotifications(requests);
   } catch (error) {
     list.innerHTML = `<div class="empty-state"><span class="empty-icon">!</span><h3>Requests are temporarily unavailable</h3><p>${escapeHtml(error.message)} Please refresh and try again.</p></div>`;
   }
@@ -121,10 +137,11 @@ async function loadAdmin() {
       }
       const requests = await requestsResponse.json();
       const totals = await analyticsResponse.json();
+      renderNotifications(requests, true);
       analytics.innerHTML = [["Total", totals.total], ["Pending", totals.pending], ["In progress", totals.inProgress], ["Resolved", totals.resolved]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
       adminList.innerHTML = requests.length ? requests.map((request) => `
         <article class="admin-row">
-          <div><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.phone)} · ${escapeHtml(request.reference)}</p>${(request.image_urls || (request.image_url ? [request.image_url] : [])).map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">View image ${index + 1}</a>`).join(" ")}</div>
+          <div class="admin-details"><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.phone)} · ${escapeHtml(request.reference)}</p><p class="admin-description">${escapeHtml(request.description)}</p><div class="admin-links">${(request.image_urls || (request.image_url ? [request.image_url] : [])).map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">View image ${index + 1}</a>`).join(" ") || "<span>No images attached</span>"}</div></div>
           <select data-request-id="${request.id}" aria-label="Update status for ${escapeHtml(request.title)}">
             ${["Pending", "In Progress", "Resolved"].map((status) => `<option ${status === request.status ? "selected" : ""}>${status}</option>`).join("")}
           </select>

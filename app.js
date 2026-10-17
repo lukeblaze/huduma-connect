@@ -97,7 +97,7 @@ async function loadAdmin() {
       analytics.innerHTML = [["Total", totals.total], ["Pending", totals.pending], ["In progress", totals.inProgress], ["Resolved", totals.resolved]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
       adminList.innerHTML = requests.length ? requests.map((request) => `
         <article class="admin-row">
-          <div><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.phone)} · ${escapeHtml(request.reference)}</p>${request.image_url ? `<a href="${escapeHtml(request.image_url)}" target="_blank" rel="noopener">View image</a>` : ""}</div>
+          <div><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.phone)} · ${escapeHtml(request.reference)}</p>${(request.image_urls || (request.image_url ? [request.image_url] : [])).map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">View image ${index + 1}</a>`).join(" ")}</div>
           <select data-request-id="${request.id}" aria-label="Update status for ${escapeHtml(request.title)}">
             ${["Pending", "In Progress", "Resolved"].map((status) => `<option ${status === request.status ? "selected" : ""}>${status}</option>`).join("")}
           </select>
@@ -165,6 +165,8 @@ form.addEventListener("submit", async (event) => {
   const submitButton = form.querySelector("button[type='submit']");
   submitButton.disabled = true;
   try {
+    await configReady;
+    if (!session?.access_token) throw new Error("Please sign in before submitting a request.");
     const response = await fetch("/api/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
@@ -174,7 +176,7 @@ form.addEventListener("submit", async (event) => {
         description: document.querySelector("#description").value.trim(),
         location: document.querySelector("#location").value.trim(),
         phone: document.querySelector("#phone").value.trim(),
-        image: await readImage()
+        images: await readImages()
       })
     });
     const result = await response.json();
@@ -193,17 +195,18 @@ form.addEventListener("submit", async (event) => {
     submitButton.disabled = false;
   }
 
-  async function readImage() {
-    const file = document.querySelector("#image").files[0];
-    if (!file) return null;
-    if (file.size > 3 * 1024 * 1024) throw new Error("Image must be smaller than 3 MB.");
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
-      reader.onerror = () => reject(new Error("Unable to read the image."));
-    });
-  }
 });
+
+async function readImages() {
+  const files = Array.from(document.querySelector("#image").files);
+  if (files.length > 5) throw new Error("You can attach up to 5 images.");
+  if (files.some((file) => file.size > 3 * 1024 * 1024)) throw new Error("Each image must be smaller than 3 MB.");
+  return Promise.all(files.map((file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+    reader.onerror = () => reject(new Error("Unable to read an image."));
+  })));
+}
 
 document.querySelectorAll("[data-scroll]").forEach((button) => {
   button.addEventListener("click", () => document.querySelector(button.dataset.scroll).scrollIntoView({ behavior: "smooth" }));

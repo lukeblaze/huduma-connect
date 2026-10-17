@@ -9,12 +9,14 @@ create table if not exists public.service_requests (
   phone text not null,
   status text not null default 'Pending' check (status in ('Pending', 'In Progress', 'Resolved')),
   image_url text,
+  image_urls jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
 alter table public.service_requests enable row level security;
 alter table public.service_requests add column if not exists user_id uuid references auth.users(id);
 alter table public.service_requests add column if not exists image_url text;
+alter table public.service_requests add column if not exists image_urls jsonb not null default '[]'::jsonb;
 alter table public.service_requests drop constraint if exists service_requests_status_check;
 update public.service_requests set status = 'Pending' where status = 'Received';
 alter table public.service_requests add constraint service_requests_status_check check (status in ('Pending', 'In Progress', 'Resolved'));

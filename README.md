@@ -35,7 +35,7 @@ Run the updated [`supabase-schema.sql`](./supabase-schema.sql) again after pulli
 
 The admin dashboard is shown automatically when the signed-in email matches `ADMIN_EMAIL`. The admin can review every request, open uploaded images, change status, and see live totals.
 
-The optional image upload uses a public Supabase Storage bucket named `request-images` created by the SQL script. For production use, change the bucket to private and issue signed URLs.
+The optional image upload accepts up to five PNG, JPEG, or WebP images. They are stored in the public Supabase Storage bucket named `request-images` created by the SQL script. For production use, change the bucket to private and issue signed URLs.
 
 ## GitHub and Vercel deployment
 

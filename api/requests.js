@@ -64,9 +64,10 @@ module.exports = async function handler(request, response) {
       return response.status(400).json({ error: "The title or description is too long." });
     }
     const reference = `HC-${Date.now().toString().slice(-7)}`;
+    const imageUrls = await uploadImages(data.images || (data.image ? [data.image] : []), reference);
     const rows = await supabaseRequest("service_requests", {
       method: "POST",
-      body: JSON.stringify({ ...values, reference, status: "Pending", user_id: user.id, image_url: await uploadImage(data.image, reference) })
+      body: JSON.stringify({ ...values, reference, status: "Pending", user_id: user.id, image_url: imageUrls[0] || null, image_urls: imageUrls })
     });
     const created = rows[0];
     return response.status(201).json({
@@ -85,13 +86,17 @@ module.exports = async function handler(request, response) {
   }
 };
 
-async function uploadImage(image, reference) {
-  if (!image) return null;
-  if (!/^data:image\/(png|jpeg|webp);base64,/.test(image.data) || image.data.length > 4_500_000) throw new Error("IMAGE");
-  const content = Buffer.from(image.data.split(",")[1], "base64");
-  const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
-  const path = `requests/${reference}.${extension}`;
-  const response = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/request-images/${path}`, { method: "POST", headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": image.type, "x-upsert": "true" }, body: content });
-  if (!response.ok) throw new Error("IMAGE");
-  return `${process.env.SUPABASE_URL}/storage/v1/object/public/request-images/${path}`;
+async function uploadImages(images, reference) {
+  if (!Array.isArray(images) || images.length > 5) throw new Error("IMAGE");
+  const urls = [];
+  for (const [index, image] of images.entries()) {
+    if (!image || !/^data:image\/(png|jpeg|webp);base64,/.test(image.data) || image.data.length > 4_500_000) throw new Error("IMAGE");
+    const content = Buffer.from(image.data.split(",")[1], "base64");
+    const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
+    const path = `requests/${reference}-${index + 1}.${extension}`;
+    const response = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/request-images/${path}`, { method: "POST", headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": image.type, "x-upsert": "true" }, body: content });
+    if (!response.ok) throw new Error("IMAGE");
+    urls.push(`${process.env.SUPABASE_URL}/storage/v1/object/public/request-images/${path}`);
+  }
+  return urls;
 }

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Submit and track public service requests online.">
+  <title>Huduma Connect | Public Service Requests</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#home" aria-label="Huduma Connect home">
+        <span class="brand-mark">HC</span>
+        <span><strong>Huduma</strong><small>CONNECT</small></span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#home">Home</a>
+        <a href="#requests">My requests</a>
+        <a href="#about">How it works</a>
+      </nav>
+      <button class="button button-primary button-small" data-scroll="#new-request">Submit request</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="home" class="hero">
+      <div class="container hero-grid">
+        <div>
+          <p class="eyebrow">PUBLIC SERVICE, SIMPLIFIED</p>
+          <h1>Report an issue.<br><span>Track the solution.</span></h1>
+          <p class="hero-copy">Connect with your county services in one place. Submit a request, receive a reference number, and follow progress from anywhere.</p>
+          <div class="hero-actions">
+            <button class="button button-primary" data-scroll="#new-request">Make a request <span aria-hidden="true">→</span></button>
+            <button class="button button-ghost" data-scroll="#requests">Track a request</button>
+          </div>
+          <div class="trust-row"><span class="trust-dot"></span> Serving residents every day <span class="divider"></span> Fast, transparent updates</div>
+        </div>
+        <div class="hero-card" aria-label="Service status overview">
+          <div class="card-top"><span class="live-dot"></span> County service desk <span class="status-pill">Online</span></div>
+          <div class="metric-row"><div><small>Requests resolved</small><strong>1,284</strong></div><div class="trend">↑ 12.4%<small> this month</small></div></div>
+          <div class="progress-label"><span>Average response time</span><strong>2.4 days</strong></div>
+          <div class="progress"><span></span></div>
+          <div class="mini-list"><div><span class="icon icon-green">✓</span><span>Street lighting</span><b>Resolved</b></div><div><span class="icon icon-blue">↗</span><span>Water services</span><b>In progress</b></div><div><span class="icon icon-orange">!</span><span>Road maintenance</span><b>Received</b></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="container stat-grid"><div><strong>2,847</strong><span>Total requests</span></div><div><strong>91%</strong><span>Resolved on time</span></div><div><strong>2.4 days</strong><span>Average response</span></div><div><strong>24/7</strong><span>Online access</span></div></div>
+    </section>
+
+    <section id="new-request" class="section">
+      <div class="container form-layout">
+        <div class="section-intro"><p class="eyebrow">NEED ASSISTANCE?</p><h2>Submit a service request</h2><p>Tell us what happened and our team will route your request to the right department.</p><div class="help-box"><strong>Before you begin</strong><span>Have a clear description and location ready. You can attach supporting files after submitting.</span></div></div>
+        <form id="request-form" class="request-form">
+          <div class="form-heading"><span class="step">01</span><div><h3>Request details</h3><p>All fields marked * are required</p></div></div>
+          <label for="category">Service category *</label>
+          <select id="category" required><option value="">Select a category</option><option>Roads and transport</option><option>Water and sanitation</option><option>Street lighting</option><option>Waste management</option><option>Health services</option><option>Other county service</option></select>
+          <label for="title">Request title *</label><input id="title" required maxlength="80" placeholder="e.g. Street light not working">
+          <label for="description">Describe the issue *</label><textarea id="description" required maxlength="500" rows="4" placeholder="Give us enough detail to understand and resolve the issue"></textarea>
+          <div class="two-col"><div><label for="location">Location *</label><input id="location" required placeholder="Area, estate or landmark"></div><div><label for="phone">Phone number *</label><input id="phone" required type="tel" placeholder="+254 7XX XXX XXX"></div></div>
+          <div class="form-footer"><span class="privacy">🔒 Your information is kept private.</span><button class="button button-primary" type="submit">Submit request <span aria-hidden="true">→</span></button></div>
+          <div id="form-message" class="form-message" role="status" hidden></div>
+        </form>
+      </div>
+    </section>
+
+    <section id="requests" class="section section-muted">
+      <div class="container"><div class="section-heading"><div><p class="eyebrow">YOUR ACTIVITY</p><h2>Recent requests</h2></div><span id="request-count" class="count-badge">0 requests</span></div><div id="request-list" class="request-list"><div class="empty-state"><span class="empty-icon">⌁</span><h3>No requests yet</h3><p>Your submitted requests and their updates will appear here.</p></div></div></div>
+    </section>
+
+    <section id="about" class="section about"><div class="container about-grid"><div><p class="eyebrow">HOW IT WORKS</p><h2>One request.<br>Clear progress.</h2></div><div class="steps"><div><span>1</span><div><h3>Submit</h3><p>Share the details of your service issue in a few simple steps.</p></div></div><div><span>2</span><div><h3>We review</h3><p>Your request reaches the right county team for action.</p></div></div><div><span>3</span><div><h3>Get updates</h3><p>Track progress and see when your issue is resolved.</p></div></div></div></div></section>
+  </main>
+  <footer><div class="container footer-inner"><span>© 2026 Huduma Connect</span><span>Built for better public services</span></div></footer>
+  <script src="app.js"></script>
+</body>
+</html>

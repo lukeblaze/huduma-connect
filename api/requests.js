@@ -29,7 +29,9 @@ async function supabaseRequest(path, options = {}) {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     console.error("Supabase request failed", response.status, body);
-    throw new Error("DATABASE");
+    const error = new Error("DATABASE");
+    error.details = body?.message || body?.hint || body?.details || "";
+    throw error;
   }
   return body;
 }
@@ -82,7 +84,8 @@ module.exports = async function handler(request, response) {
     if (error.message === "UNAUTHORIZED") return response.status(401).json({ error: "Please sign in to continue." });
     if (error.message === "IMAGE") return response.status(400).json({ error: "The image must be a PNG, JPEG, or WebP file smaller than 3 MB." });
     if (error.message === "CONFIGURATION") return response.status(500).json(configurationError().body);
-    return response.status(500).json({ error: "The request could not be completed. Please try again." });
+    console.error("Request handler failed", error);
+    return response.status(500).json({ error: error.details || "The request could not be completed. Please try again." });
   }
 };
 

@@ -20,10 +20,22 @@
         <a href="#about">How it works</a>
       </nav>
       <button class="button button-primary button-small" data-scroll="#new-request">Submit request</button>
+      <button id="logout-button" class="button button-ghost button-small" type="button" hidden>Log out</button>
     </div>
   </header>
 
   <main>
+    <section id="auth" class="auth-section">
+      <div class="container auth-card">
+        <div><p class="eyebrow">SECURE ACCESS</p><h2 id="auth-title">Sign in to manage your requests</h2><p id="auth-subtitle">Create a free account to submit requests and view only your own activity.</p></div>
+        <form id="auth-form" class="auth-form">
+          <label for="auth-email">Email address</label><input id="auth-email" type="email" required placeholder="you@example.com">
+          <label for="auth-password">Password</label><input id="auth-password" type="password" required minlength="6" placeholder="At least 6 characters">
+          <div class="auth-actions"><button id="auth-submit" class="button button-primary" type="submit">Sign in</button><button id="auth-toggle" class="button button-ghost" type="button">Create account</button></div>
+          <div id="auth-message" class="form-message" role="status" hidden></div>
+        </form>
+      </div>
+    </section>
     <section id="home" class="hero">
       <div class="container hero-grid">
         <div>

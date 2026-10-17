@@ -1,7 +1,42 @@
+const authSection = document.querySelector("#auth");
+const authForm = document.querySelector("#auth-form");
+const authMessage = document.querySelector("#auth-message");
+const authToggle = document.querySelector("#auth-toggle");
+const authSubmit = document.querySelector("#auth-submit");
+const logoutButton = document.querySelector("#logout-button");
 const form = document.querySelector("#request-form");
 const list = document.querySelector("#request-list");
 const count = document.querySelector("#request-count");
 const message = document.querySelector("#form-message");
+let authMode = "signin";
+let config;
+let session = JSON.parse(localStorage.getItem("huduma-session") || "null");
+
+async function getConfig() {
+  const response = await fetch("/api/config");
+  if (!response.ok) throw new Error("Authentication is not configured.");
+  return response.json();
+}
+
+async function authRequest(path, options = {}) {
+  const response = await fetch(`${config.url}/auth/v1/${path}`, {
+    ...options,
+    headers: { apikey: config.anonKey, "Content-Type": "application/json", ...(options.headers || {}) }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error_description || result.msg || result.message || "Authentication failed.");
+  return result;
+}
+
+function setAuthState(nextSession) {
+  session = nextSession;
+  if (session) localStorage.setItem("huduma-session", JSON.stringify(session));
+  else localStorage.removeItem("huduma-session");
+  authSection.hidden = Boolean(session);
+  logoutButton.hidden = !session;
+  form.closest(".section").hidden = !session;
+  document.querySelector("#requests").hidden = !session;
+}
 
 function renderRequests(requests) {
   count.textContent = `${requests.length} request${requests.length === 1 ? "" : "s"}`;
@@ -28,8 +63,9 @@ function escapeHtml(value) {
 }
 
 async function loadRequests() {
+  if (!session) return;
   try {
-    const response = await fetch("/api/requests");
+    const response = await fetch("/api/requests", { headers: { Authorization: `Bearer ${session.access_token}` } });
     if (!response.ok) throw new Error("Unable to load requests.");
     renderRequests(await response.json());
   } catch (error) {
@@ -37,13 +73,50 @@ async function loadRequests() {
   }
 }
 
-form.addEventListener("submit", (event) => {
+authToggle.addEventListener("click", () => {
+  authMode = authMode === "signin" ? "signup" : "signin";
+  authSubmit.textContent = authMode === "signin" ? "Sign in" : "Create account";
+  authToggle.textContent = authMode === "signin" ? "Create account" : "I already have an account";
+  document.querySelector("#auth-title").textContent = authMode === "signin" ? "Sign in to manage your requests" : "Create your free account";
+});
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  authSubmit.disabled = true;
+  authMessage.hidden = true;
+  try {
+    const email = document.querySelector("#auth-email").value.trim();
+    const password = document.querySelector("#auth-password").value;
+    if (authMode === "signup") {
+      await authRequest("signup", { method: "POST", body: JSON.stringify({ email, password }) });
+      authMessage.hidden = false;
+      authMessage.textContent = "Account created. Check your email to confirm it, then sign in.";
+      authMode = "signin";
+      authSubmit.textContent = "Sign in";
+      authToggle.textContent = "Create account";
+      return;
+    }
+    const result = await authRequest("token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
+    setAuthState(result);
+    await loadRequests();
+  } catch (error) {
+    authMessage.hidden = false;
+    authMessage.className = "form-message form-error";
+    authMessage.textContent = error.message;
+  } finally {
+    authSubmit.disabled = false;
+  }
+});
+
+logoutButton.addEventListener("click", () => setAuthState(null));
+
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const submitButton = form.querySelector("button[type='submit']");
   submitButton.disabled = true;
   fetch("/api/requests", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
     body: JSON.stringify({
       title: document.querySelector("#title").value.trim(),
       category: document.querySelector("#category").value,
@@ -73,4 +146,12 @@ document.querySelectorAll("[data-scroll]").forEach((button) => {
   button.addEventListener("click", () => document.querySelector(button.dataset.scroll).scrollIntoView({ behavior: "smooth" }));
 });
 
-loadRequests();
+getConfig().then((value) => {
+  config = value;
+  setAuthState(session);
+  loadRequests();
+}).catch((error) => {
+  authMessage.hidden = false;
+  authMessage.className = "form-message form-error";
+  authMessage.textContent = error.message;
+});

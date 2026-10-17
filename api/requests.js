@@ -9,7 +9,7 @@ function json(status, body) {
 }
 
 function configurationError() {
-  return json(500, { error: "The service is not configured. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel." });
+  return json(500, { error: "The service is not configured. Add Supabase variables in Vercel." });
 }
 
 async function supabaseRequest(path, options = {}) {
@@ -34,10 +34,23 @@ async function supabaseRequest(path, options = {}) {
   return body;
 }
 
+async function getUser(request) {
+  const token = request.headers.authorization?.replace(/^Bearer\s+/i, "");
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!token || !url || !anonKey) throw new Error("UNAUTHORIZED");
+  const response = await fetch(`${url}/auth/v1/user`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error("UNAUTHORIZED");
+  return response.json();
+}
+
 module.exports = async function handler(request, response) {
   try {
+    const user = await getUser(request);
     if (request.method === "GET") {
-      const rows = await supabaseRequest("service_requests?select=id,reference,category,title,status,created_at&order=created_at.desc&limit=50");
+      const rows = await supabaseRequest(`service_requests?select=id,reference,category,title,status,created_at&user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc&limit=50`);
       return response.status(200).json(rows);
     }
     if (request.method !== "POST") return response.status(405).json({ error: "Method not allowed." });
@@ -53,7 +66,7 @@ module.exports = async function handler(request, response) {
     const reference = `HC-${Date.now().toString().slice(-7)}`;
     const rows = await supabaseRequest("service_requests", {
       method: "POST",
-      body: JSON.stringify({ ...values, reference, status: "Received" })
+      body: JSON.stringify({ ...values, reference, status: "Received", user_id: user.id })
     });
     const created = rows[0];
     return response.status(201).json({
@@ -65,6 +78,7 @@ module.exports = async function handler(request, response) {
       created_at: created.created_at
     });
   } catch (error) {
+    if (error.message === "UNAUTHORIZED") return response.status(401).json({ error: "Please sign in to continue." });
     if (error.message === "CONFIGURATION") return response.status(500).json(configurationError().body);
     return response.status(500).json({ error: "The request could not be completed. Please try again." });
   }

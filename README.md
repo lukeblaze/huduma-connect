@@ -28,6 +28,9 @@ Add these variables in Vercel Project Settings → Environment Variables:
 
 - `SUPABASE_URL` — your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` — your Supabase service-role key (never expose this in frontend code)
+- `SUPABASE_ANON_KEY` — your Supabase anon/public key (safe for browser authentication)
+
+Run the updated [`supabase-schema.sql`](./supabase-schema.sql) again after pulling this version. It adds user ownership and Row Level Security policies. In Supabase Authentication → Providers, enable Email. For the fastest demo, you may disable email confirmation; otherwise users must confirm their email before signing in.
 
 ## GitHub and Vercel deployment
 

@@ -19,6 +19,8 @@
         <a href="#requests">My requests</a>
         <a href="#about">How it works</a>
       </nav>
+      <button id="menu-toggle" class="icon-button" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
+      <button id="theme-toggle" class="icon-button" type="button" aria-label="Toggle dark mode">☾</button>
       <button class="button button-primary button-small" data-scroll="#new-request">Submit request</button>
       <button id="logout-button" class="button button-ghost button-small" type="button" hidden>Log out</button>
     </div>
@@ -66,13 +68,14 @@
       <div class="container form-layout">
         <div class="section-intro"><p class="eyebrow">NEED ASSISTANCE?</p><h2>Submit a service request</h2><p>Tell us what happened and our team will route your request to the right department.</p><div class="help-box"><strong>Before you begin</strong><span>Have a clear description and location ready. You can attach supporting files after submitting.</span></div></div>
         <form id="request-form" class="request-form">
-          <div class="form-heading"><span class="step">01</span><div><h3>Request details</h3><p>All fields marked * are required</p></div></div>
+          <div class="form-heading"><span class="step">01</span><div><h3>Request details</h3><p>Complete the details below. You can review everything before submitting.</p></div></div>
+          <div class="form-progress" aria-label="Request form checklist"><span class="active">1 Details</span><span>2 Location</span><span>3 Attachments</span><span>4 Review</span></div>
           <label for="category">Service category *</label>
           <select id="category" required><option value="">Select a category</option><option>Roads and transport</option><option>Water and sanitation</option><option>Street lighting</option><option>Waste management</option><option>Health services</option><option>Other county service</option></select>
           <label for="title">Request title *</label><input id="title" required maxlength="80" placeholder="e.g. Street light not working">
           <label for="description">Describe the issue *</label><textarea id="description" required maxlength="500" rows="4" placeholder="Give us enough detail to understand and resolve the issue"></textarea>
           <div class="two-col"><div><label for="location">Location *</label><input id="location" required placeholder="Area, estate or landmark"></div><div><label for="phone">Phone number *</label><input id="phone" required type="tel" placeholder="+254 7XX XXX XXX"></div></div>
-          <label for="image">Supporting images (optional)</label><input id="image" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+          <label for="image">Supporting images (optional)</label><input id="image" type="file" accept="image/png,image/jpeg,image/webp" multiple><div id="image-preview" class="image-preview" aria-live="polite"></div>
           <div class="form-footer"><span class="privacy">🔒 Your information is kept private.</span><button class="button button-primary" type="submit">Submit request <span aria-hidden="true">→</span></button></div>
           <div id="form-message" class="form-message" role="status" hidden></div>
         </form>
@@ -88,6 +91,7 @@
       <div class="container">
         <div class="section-heading"><div><p class="eyebrow">ADMINISTRATION</p><h2>Service desk dashboard</h2></div><button id="refresh-admin" class="button button-ghost button-small" type="button">Refresh</button></div>
         <div id="analytics" class="admin-stats"></div>
+        <div class="admin-toolbar"><label for="admin-search" class="sr-only">Search requests</label><input id="admin-search" placeholder="Search by title, reference or location"><select id="admin-filter" aria-label="Filter requests"><option value="all">All statuses</option><option>Pending</option><option>In Progress</option><option>Resolved</option></select></div>
         <div id="admin-message" class="form-message" role="status" hidden></div>
         <div id="admin-list" class="admin-list"></div>
       </div>
@@ -100,6 +104,8 @@
     <section id="about" class="section about"><div class="container about-grid"><div><p class="eyebrow">HOW IT WORKS</p><h2>One request.<br>Clear progress.</h2></div><div class="steps"><div><span>1</span><div><h3>Submit</h3><p>Share the details of your service issue in a few simple steps.</p></div></div><div><span>2</span><div><h3>We review</h3><p>Your request reaches the right county team for action.</p></div></div><div><span>3</span><div><h3>Get updates</h3><p>Track progress and see when your issue is resolved.</p></div></div></div></div></section>
     <section class="section community"><div class="container"><p class="eyebrow">WORKING TOGETHER</p><h2>Better services start with a report.</h2><div class="community-grid"><article><img src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80" alt="Community team working together"><h3>People-powered service</h3><p>Residents and county teams working together to improve everyday life.</p></article><article><img src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80" alt="Team reviewing service information"><h3>Clear progress</h3><p>Every request has a reference number and a visible status.</p></article><article><img src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&q=80" alt="People connecting in a community"><h3>Stronger communities</h3><p>Your feedback helps teams prioritize what matters most.</p></article></div></div></section>
   </main>
+  <div id="request-modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-card"><button id="modal-close" class="modal-close" type="button" aria-label="Close details">×</button><p class="eyebrow">REQUEST DETAILS</p><h2 id="modal-title"></h2><div id="modal-content"></div></div></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <footer><div class="container footer-inner"><span>© 2026 Huduma Connect</span><span>Built for better public services</span></div></footer>
   <script src="app.js"></script>
 </body>

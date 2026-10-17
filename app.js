@@ -11,6 +11,14 @@ const adminMessage = document.querySelector("#admin-message");
 const notificationSection = document.querySelector("#notifications");
 const notificationList = document.querySelector("#notification-list");
 const notificationCount = document.querySelector("#notification-count");
+const imageInput = document.querySelector("#image");
+const imagePreview = document.querySelector("#image-preview");
+const adminSearch = document.querySelector("#admin-search");
+const adminFilter = document.querySelector("#admin-filter");
+const modal = document.querySelector("#request-modal");
+const modalContent = document.querySelector("#modal-content");
+const toast = document.querySelector("#toast");
+let adminRequests = [];
 const form = document.querySelector("#request-form");
 const list = document.querySelector("#request-list");
 const count = document.querySelector("#request-count");
@@ -78,11 +86,27 @@ function renderRequests(requests) {
     return;
   }
   list.innerHTML = requests.map((request) => `
-    <article class="request-card">
+    <article class="request-card" tabindex="0" data-request-index="${requests.indexOf(request)}">
       <span class="icon icon-blue">↗</span>
       <div><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.reference)} · ${escapeHtml(formatDate(request.created_at))}</p></div>
-      <span class="request-status">${escapeHtml(request.status || "Received")}</span>
+      <div class="request-card-actions"><span class="request-status">${escapeHtml(request.status || "Received")}</span><button class="text-button" data-view-request="${requests.indexOf(request)}" type="button">View details</button></div>
     </article>`).join("");
+  list.querySelectorAll("[data-view-request]").forEach((button) => button.addEventListener("click", () => showRequestModal(requests[button.dataset.viewRequest])));
+}
+
+function showRequestModal(request) {
+  const images = request.image_urls || (request.image_url ? [request.image_url] : []);
+  modalContent.innerHTML = `<p class="modal-reference">${escapeHtml(request.reference)} · ${escapeHtml(formatDate(request.created_at))}</p><p>${escapeHtml(request.description || "No description provided.")}</p><div class="modal-meta"><span><b>Category</b>${escapeHtml(request.category)}</span><span><b>Location</b>${escapeHtml(request.location)}</span><span><b>Status</b>${escapeHtml(request.status || "Pending")}</span></div>${images.length ? `<div class="modal-gallery">${images.map((url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="Uploaded request evidence"></a>`).join("")}</div>` : "<p class=\"muted\">No images attached.</p>"}`;
+  document.querySelector("#modal-title").textContent = request.title;
+  modal.hidden = false;
+  document.querySelector("#modal-close").focus();
+}
+
+function showToast(text) {
+  toast.textContent = text;
+  toast.hidden = false;
+  clearTimeout(showToast.timeout);
+  showToast.timeout = setTimeout(() => { toast.hidden = true; }, 3200);
 }
 
 function renderNotifications(requests, isAdmin = false) {
@@ -136,9 +160,25 @@ async function loadAdmin() {
         throw new Error(details.error || "Unable to load admin analytics.");
       }
       const requests = await requestsResponse.json();
+      adminRequests = requests;
       const totals = await analyticsResponse.json();
       renderNotifications(requests, true);
       analytics.innerHTML = [["Total", totals.total], ["Pending", totals.pending], ["In progress", totals.inProgress], ["Resolved", totals.resolved]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
+      renderAdminRequests();
+    } catch (error) {
+      adminMessage.hidden = false;
+      adminMessage.className = "form-message form-error";
+      adminMessage.textContent = error.message;
+    }
+  }
+
+function renderAdminRequests() {
+      const query = adminSearch.value.trim().toLowerCase();
+      const status = adminFilter.value;
+      const requests = adminRequests.filter((request) => {
+        const matchesQuery = !query || [request.title, request.reference, request.location, request.category].some((value) => String(value || "").toLowerCase().includes(query));
+        return matchesQuery && (status === "all" || request.status === status);
+      });
       adminList.innerHTML = requests.length ? requests.map((request) => `
         <article class="admin-row">
           <div class="admin-details"><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.phone)} · ${escapeHtml(request.reference)}</p><p class="admin-description">${escapeHtml(request.description)}</p><div class="admin-links">${(request.image_urls || (request.image_url ? [request.image_url] : [])).map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">View image ${index + 1}</a>`).join(" ") || "<span>No images attached</span>"}</div></div>
@@ -147,12 +187,7 @@ async function loadAdmin() {
           </select>
         </article>`).join("") : '<div class="empty-state"><h3>No submitted requests</h3><p>New citizen requests will appear here.</p></div>';
       adminList.querySelectorAll("select").forEach((select) => select.addEventListener("change", () => updateStatus(select.dataset.requestId, select.value)));
-    } catch (error) {
-      adminMessage.hidden = false;
-      adminMessage.className = "form-message form-error";
-      adminMessage.textContent = error.message;
-    }
-  }
+}
 
 async function updateStatus(id, status) {
     try {
@@ -160,6 +195,7 @@ async function updateStatus(id, status) {
       if (!response.ok) throw new Error("Unable to update request status.");
       await loadAdmin();
       await loadRequests();
+      showToast("Request status updated");
     } catch (error) {
       adminMessage.hidden = false;
       adminMessage.className = "form-message form-error";
@@ -208,6 +244,8 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const submitButton = form.querySelector("button[type='submit']");
   submitButton.disabled = true;
+  submitButton.dataset.originalText = submitButton.textContent;
+  submitButton.textContent = "Submitting...";
   try {
     await configReady;
     if (!session?.access_token) throw new Error("Please sign in before submitting a request.");
@@ -229,6 +267,7 @@ form.addEventListener("submit", async (event) => {
     message.hidden = false;
     message.className = "form-message";
     message.textContent = `Request submitted successfully. Your reference number is ${result.reference}.`;
+    showToast("Request submitted successfully");
     await loadRequests();
     document.querySelector("#requests").scrollIntoView({ behavior: "smooth" });
   } catch (error) {
@@ -237,6 +276,7 @@ form.addEventListener("submit", async (event) => {
     message.textContent = error.message;
   } finally {
     submitButton.disabled = false;
+    submitButton.textContent = submitButton.dataset.originalText;
   }
 
 });
@@ -278,6 +318,27 @@ function compressImage(file) {
     image.src = objectUrl;
   });
 }
+
+imageInput.addEventListener("change", () => {
+  const files = Array.from(imageInput.files);
+  imagePreview.innerHTML = files.map((file) => `<span class="preview-item"><img src="${URL.createObjectURL(file)}" alt=""><b>${escapeHtml(file.name)}</b></span>`).join("");
+});
+
+adminSearch.addEventListener("input", renderAdminRequests);
+adminFilter.addEventListener("change", renderAdminRequests);
+document.querySelector("#modal-close").addEventListener("click", () => { modal.hidden = true; });
+modal.addEventListener("click", (event) => { if (event.target === modal) modal.hidden = true; });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") modal.hidden = true; });
+document.querySelector("#menu-toggle").addEventListener("click", (event) => {
+  const open = event.currentTarget.getAttribute("aria-expanded") === "true";
+  event.currentTarget.setAttribute("aria-expanded", String(!open));
+  document.querySelector(".nav").classList.toggle("nav-open", !open);
+});
+document.querySelector("#theme-toggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  localStorage.setItem("huduma-theme", document.body.classList.contains("dark-mode") ? "dark" : "light");
+});
+if (localStorage.getItem("huduma-theme") === "dark") document.body.classList.add("dark-mode");
 
 document.querySelectorAll("[data-scroll]").forEach((button) => {
   button.addEventListener("click", () => document.querySelector(button.dataset.scroll).scrollIntoView({ behavior: "smooth" }));

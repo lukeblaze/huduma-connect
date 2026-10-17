@@ -14,6 +14,7 @@ const count = document.querySelector("#request-count");
 const message = document.querySelector("#form-message");
 let authMode = "signin";
 let config;
+let configReady;
 let session = JSON.parse(localStorage.getItem("huduma-session") || "null");
 
 async function getConfig() {
@@ -23,6 +24,8 @@ async function getConfig() {
 }
 
 async function authRequest(path, options = {}) {
+  await configReady;
+  if (!config?.url || !config?.anonKey) throw new Error("Authentication configuration is missing. Please refresh and try again.");
   const response = await fetch(`${config.url}/auth/v1/${path}`, {
     ...options,
     headers: { apikey: config.anonKey, "Content-Type": "application/json", ...(options.headers || {}) }
@@ -207,11 +210,13 @@ document.querySelectorAll("[data-scroll]").forEach((button) => {
 });
 document.querySelector("#refresh-admin").addEventListener("click", loadAdmin);
 
-getConfig().then((value) => {
+configReady = getConfig().then((value) => {
   config = value;
+  if (!config.url || !config.anonKey) throw new Error("Authentication configuration is incomplete.");
   setAuthState(session);
   loadRequests();
 }).catch((error) => {
+  config = null;
   authMessage.hidden = false;
   authMessage.className = "form-message form-error";
   authMessage.textContent = error.message;

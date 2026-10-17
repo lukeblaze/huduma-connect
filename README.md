@@ -29,8 +29,13 @@ Add these variables in Vercel Project Settings → Environment Variables:
 - `SUPABASE_URL` — your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` — your Supabase service-role key (never expose this in frontend code)
 - `SUPABASE_ANON_KEY` — your Supabase anon/public key (safe for browser authentication)
+- `ADMIN_EMAIL` — the exact email address of the administrator account
 
 Run the updated [`supabase-schema.sql`](./supabase-schema.sql) again after pulling this version. It adds user ownership and Row Level Security policies. In Supabase Authentication → Providers, enable Email. For the fastest demo, you may disable email confirmation; otherwise users must confirm their email before signing in.
+
+The admin dashboard is shown automatically when the signed-in email matches `ADMIN_EMAIL`. The admin can review every request, open uploaded images, change status, and see live totals.
+
+The optional image upload uses a public Supabase Storage bucket named `request-images` created by the SQL script. For production use, change the bucket to private and issue signed URLs.
 
 ## GitHub and Vercel deployment
 

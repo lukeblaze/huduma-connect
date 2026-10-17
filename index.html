@@ -72,9 +72,18 @@
           <label for="title">Request title *</label><input id="title" required maxlength="80" placeholder="e.g. Street light not working">
           <label for="description">Describe the issue *</label><textarea id="description" required maxlength="500" rows="4" placeholder="Give us enough detail to understand and resolve the issue"></textarea>
           <div class="two-col"><div><label for="location">Location *</label><input id="location" required placeholder="Area, estate or landmark"></div><div><label for="phone">Phone number *</label><input id="phone" required type="tel" placeholder="+254 7XX XXX XXX"></div></div>
+          <label for="image">Supporting image (optional)</label><input id="image" type="file" accept="image/png,image/jpeg,image/webp">
           <div class="form-footer"><span class="privacy">🔒 Your information is kept private.</span><button class="button button-primary" type="submit">Submit request <span aria-hidden="true">→</span></button></div>
           <div id="form-message" class="form-message" role="status" hidden></div>
         </form>
+      </div>
+    </section>
+    <section id="admin" class="section section-muted" hidden>
+      <div class="container">
+        <div class="section-heading"><div><p class="eyebrow">ADMINISTRATION</p><h2>Service desk dashboard</h2></div><button id="refresh-admin" class="button button-ghost button-small" type="button">Refresh</button></div>
+        <div id="analytics" class="admin-stats"></div>
+        <div id="admin-message" class="form-message" role="status" hidden></div>
+        <div id="admin-list" class="admin-list"></div>
       </div>
     </section>
 

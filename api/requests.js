@@ -66,7 +66,7 @@ module.exports = async function handler(request, response) {
     const reference = `HC-${Date.now().toString().slice(-7)}`;
     const rows = await supabaseRequest("service_requests", {
       method: "POST",
-      body: JSON.stringify({ ...values, reference, status: "Received", user_id: user.id })
+      body: JSON.stringify({ ...values, reference, status: "Pending", user_id: user.id, image_url: await uploadImage(data.image, reference) })
     });
     const created = rows[0];
     return response.status(201).json({
@@ -79,7 +79,19 @@ module.exports = async function handler(request, response) {
     });
   } catch (error) {
     if (error.message === "UNAUTHORIZED") return response.status(401).json({ error: "Please sign in to continue." });
+    if (error.message === "IMAGE") return response.status(400).json({ error: "The image must be a PNG, JPEG, or WebP file smaller than 3 MB." });
     if (error.message === "CONFIGURATION") return response.status(500).json(configurationError().body);
     return response.status(500).json({ error: "The request could not be completed. Please try again." });
   }
 };
+
+async function uploadImage(image, reference) {
+  if (!image) return null;
+  if (!/^data:image\/(png|jpeg|webp);base64,/.test(image.data) || image.data.length > 4_500_000) throw new Error("IMAGE");
+  const content = Buffer.from(image.data.split(",")[1], "base64");
+  const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
+  const path = `requests/${reference}.${extension}`;
+  const response = await fetch(`${process.env.SUPABASE_URL}/storage/v1/object/request-images/${path}`, { method: "POST", headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": image.type, "x-upsert": "true" }, body: content });
+  if (!response.ok) throw new Error("IMAGE");
+  return `${process.env.SUPABASE_URL}/storage/v1/object/public/request-images/${path}`;
+}

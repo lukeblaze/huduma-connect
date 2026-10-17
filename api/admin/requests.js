@@ -1,0 +1,42 @@
+const statuses = ["Pending", "In Progress", "Resolved"];
+
+async function userFromToken(request) {
+  const token = request.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (!token || !process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) throw new Error("UNAUTHORIZED");
+  const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: process.env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error("UNAUTHORIZED");
+  return response.json();
+}
+
+function requireAdmin(user) {
+  if (!process.env.ADMIN_EMAIL || user.email?.toLowerCase() !== process.env.ADMIN_EMAIL.toLowerCase()) throw new Error("FORBIDDEN");
+}
+
+async function db(path, options = {}) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("CONFIGURATION");
+  const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${path}`, { ...options, headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation", ...(options.headers || {}) } });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error("DATABASE");
+  return body;
+}
+
+module.exports = async function handler(request, response) {
+  try {
+    const user = await userFromToken(request);
+    requireAdmin(user);
+    if (request.method === "GET") {
+      const rows = await db("service_requests?select=*&order=created_at.desc&limit=200");
+      return response.status(200).json(rows);
+    }
+    if (request.method !== "PATCH") return response.status(405).json({ error: "Method not allowed." });
+    const id = request.query?.id;
+    const data = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
+    if (!id || !statuses.includes(data?.status)) return response.status(400).json({ error: "A valid request and status are required." });
+    const rows = await db(`service_requests?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status: data.status }) });
+    return response.status(200).json(rows[0]);
+  } catch (error) {
+    if (error.message === "UNAUTHORIZED") return response.status(401).json({ error: "Please sign in." });
+    if (error.message === "FORBIDDEN") return response.status(403).json({ error: "Administrator access required." });
+    return response.status(500).json({ error: "The admin operation could not be completed." });
+  }
+};

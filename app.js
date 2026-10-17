@@ -4,6 +4,10 @@ const authMessage = document.querySelector("#auth-message");
 const authToggle = document.querySelector("#auth-toggle");
 const authSubmit = document.querySelector("#auth-submit");
 const logoutButton = document.querySelector("#logout-button");
+const adminSection = document.querySelector("#admin");
+const adminList = document.querySelector("#admin-list");
+const analytics = document.querySelector("#analytics");
+const adminMessage = document.querySelector("#admin-message");
 const form = document.querySelector("#request-form");
 const list = document.querySelector("#request-list");
 const count = document.querySelector("#request-count");
@@ -36,6 +40,8 @@ function setAuthState(nextSession) {
   logoutButton.hidden = !session;
   form.closest(".section").hidden = !session;
   document.querySelector("#requests").hidden = !session;
+  if (!session) adminSection.hidden = true;
+  if (session && session.user?.email === config.adminEmail) loadAdmin();
 }
 
 function renderRequests(requests) {
@@ -70,6 +76,47 @@ async function loadRequests() {
     renderRequests(await response.json());
   } catch (error) {
     list.innerHTML = `<div class="empty-state"><span class="empty-icon">!</span><h3>Requests are temporarily unavailable</h3><p>${escapeHtml(error.message)} Please refresh and try again.</p></div>`;
+  }
+
+  async function loadAdmin() {
+    if (!session || session.user?.email !== config.adminEmail) return;
+    adminSection.hidden = false;
+    try {
+      const headers = { Authorization: `Bearer ${session.access_token}` };
+      const [requestsResponse, analyticsResponse] = await Promise.all([
+        fetch("/api/admin/requests", { headers }),
+        fetch("/api/admin/analytics", { headers })
+      ]);
+      if (!requestsResponse.ok || !analyticsResponse.ok) throw new Error("Unable to load the admin dashboard.");
+      const requests = await requestsResponse.json();
+      const totals = await analyticsResponse.json();
+      analytics.innerHTML = [["Total", totals.total], ["Pending", totals.pending], ["In progress", totals.inProgress], ["Resolved", totals.resolved]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
+      adminList.innerHTML = requests.length ? requests.map((request) => `
+        <article class="admin-row">
+          <div><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.reference)} · ${escapeHtml(request.email || "")}</p>${request.image_url ? `<a href="${escapeHtml(request.image_url)}" target="_blank" rel="noopener">View image</a>` : ""}</div>
+          <select data-request-id="${request.id}" aria-label="Update status for ${escapeHtml(request.title)}">
+            ${["Pending", "In Progress", "Resolved"].map((status) => `<option ${status === request.status ? "selected" : ""}>${status}</option>`).join("")}
+          </select>
+        </article>`).join("") : '<div class="empty-state"><h3>No submitted requests</h3><p>New citizen requests will appear here.</p></div>';
+      adminList.querySelectorAll("select").forEach((select) => select.addEventListener("change", () => updateStatus(select.dataset.requestId, select.value)));
+    } catch (error) {
+      adminMessage.hidden = false;
+      adminMessage.className = "form-message form-error";
+      adminMessage.textContent = error.message;
+    }
+  }
+
+  async function updateStatus(id, status) {
+    try {
+      const response = await fetch(`/api/admin/requests?id=${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ status }) });
+      if (!response.ok) throw new Error("Unable to update request status.");
+      await loadAdmin();
+      await loadRequests();
+    } catch (error) {
+      adminMessage.hidden = false;
+      adminMessage.className = "form-message form-error";
+      adminMessage.textContent = error.message;
+    }
   }
 }
 
@@ -114,17 +161,19 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const submitButton = form.querySelector("button[type='submit']");
   submitButton.disabled = true;
-  fetch("/api/requests", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-    body: JSON.stringify({
-      title: document.querySelector("#title").value.trim(),
-      category: document.querySelector("#category").value,
-      description: document.querySelector("#description").value.trim(),
-      location: document.querySelector("#location").value.trim(),
-      phone: document.querySelector("#phone").value.trim()
-    })
-  }).then(async (response) => {
+  try {
+    const response = await fetch("/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({
+        title: document.querySelector("#title").value.trim(),
+        category: document.querySelector("#category").value,
+        description: document.querySelector("#description").value.trim(),
+        location: document.querySelector("#location").value.trim(),
+        phone: document.querySelector("#phone").value.trim(),
+        image: await readImage()
+      })
+    });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Unable to submit request.");
     form.reset();
@@ -133,18 +182,30 @@ form.addEventListener("submit", async (event) => {
     message.textContent = `Request submitted successfully. Your reference number is ${result.reference}.`;
     await loadRequests();
     document.querySelector("#requests").scrollIntoView({ behavior: "smooth" });
-  }).catch((error) => {
+  } catch (error) {
     message.hidden = false;
     message.className = "form-message form-error";
     message.textContent = error.message;
-  }).finally(() => {
+  } finally {
     submitButton.disabled = false;
-  });
+  }
+
+  async function readImage() {
+    const file = document.querySelector("#image").files[0];
+    if (!file) return null;
+    if (file.size > 3 * 1024 * 1024) throw new Error("Image must be smaller than 3 MB.");
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+      reader.onerror = () => reject(new Error("Unable to read the image."));
+    });
+  }
 });
 
 document.querySelectorAll("[data-scroll]").forEach((button) => {
   button.addEventListener("click", () => document.querySelector(button.dataset.scroll).scrollIntoView({ behavior: "smooth" }));
 });
+document.querySelector("#refresh-admin").addEventListener("click", loadAdmin);
 
 getConfig().then((value) => {
   config = value;

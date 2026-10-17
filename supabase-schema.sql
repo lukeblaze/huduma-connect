@@ -7,12 +7,19 @@ create table if not exists public.service_requests (
   description text not null check (char_length(description) <= 500),
   location text not null,
   phone text not null,
-  status text not null default 'Received' check (status in ('Received', 'In progress', 'Resolved')),
+  status text not null default 'Pending' check (status in ('Pending', 'In Progress', 'Resolved')),
+  image_url text,
   created_at timestamptz not null default now()
 );
 
 alter table public.service_requests enable row level security;
 alter table public.service_requests add column if not exists user_id uuid references auth.users(id);
+alter table public.service_requests add column if not exists image_url text;
+update public.service_requests set status = 'Pending' where status = 'Received';
+alter table public.service_requests drop constraint if exists service_requests_status_check;
+alter table public.service_requests add constraint service_requests_status_check check (status in ('Pending', 'In Progress', 'Resolved'));
+
+insert into storage.buckets (id, name, public) values ('request-images', 'request-images', true) on conflict (id) do nothing;
 
 drop policy if exists "Users can view their own requests" on public.service_requests;
 create policy "Users can view their own requests"

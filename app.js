@@ -200,12 +200,39 @@ form.addEventListener("submit", async (event) => {
 async function readImages() {
   const files = Array.from(document.querySelector("#image").files);
   if (files.length > 5) throw new Error("You can attach up to 5 images.");
-  if (files.some((file) => file.size > 3 * 1024 * 1024)) throw new Error("Each image must be smaller than 3 MB.");
-  return Promise.all(files.map((file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
-    reader.onerror = () => reject(new Error("Unable to read an image."));
-  })));
+  if (files.some((file) => !["image/png", "image/jpeg", "image/webp"].includes(file.type))) {
+    throw new Error("Only PNG, JPEG, and WebP images are supported.");
+  }
+  const images = await Promise.all(files.map((file) => compressImage(file)));
+  if (images.reduce((total, image) => total + image.data.length, 0) > 4_000_000) {
+    throw new Error("The selected images are too large together. Choose fewer or smaller images.");
+  }
+  return images;
+}
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      resolve({
+        name: file.name,
+        type: "image/jpeg",
+        data: canvas.toDataURL("image/jpeg", 0.78)
+      });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Unable to read an image."));
+    };
+    image.src = objectUrl;
+  });
 }
 
 document.querySelectorAll("[data-scroll]").forEach((button) => {

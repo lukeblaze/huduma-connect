@@ -93,7 +93,7 @@ async function uploadImages(images, reference) {
   if (!Array.isArray(images) || images.length > 5) throw new Error("IMAGE");
   const urls = [];
   for (const [index, image] of images.entries()) {
-    if (!image || !/^data:image\/(png|jpeg|webp);base64,/.test(image.data) || image.data.length > 4_500_000) throw new Error("IMAGE");
+    if (!image || !/^data:image\/(jpeg|png|webp);base64,/.test(image.data) || image.data.length > 4_500_000) throw new Error("IMAGE");
     const content = Buffer.from(image.data.split(",")[1], "base64");
     const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
     const path = `requests/${reference}-${index + 1}.${extension}`;

@@ -37,6 +37,7 @@ module.exports = async function handler(request, response) {
   } catch (error) {
     if (error.message === "UNAUTHORIZED") return response.status(401).json({ error: "Please sign in." });
     if (error.message === "FORBIDDEN") return response.status(403).json({ error: "Administrator access required." });
-    return response.status(500).json({ error: "The admin operation could not be completed." });
+    console.error("Admin request operation failed", error);
+    return response.status(500).json({ error: error.details || "The admin operation could not be completed." });
   }
 };

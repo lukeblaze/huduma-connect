@@ -96,7 +96,14 @@ async function loadAdmin() {
         fetch("/api/admin/requests", { headers }),
         fetch("/api/admin/analytics", { headers })
       ]);
-      if (!requestsResponse.ok || !analyticsResponse.ok) throw new Error("Unable to load the admin dashboard.");
+      if (!requestsResponse.ok) {
+        const details = await requestsResponse.json().catch(() => ({}));
+        throw new Error(details.error || "Unable to load admin requests.");
+      }
+      if (!analyticsResponse.ok) {
+        const details = await analyticsResponse.json().catch(() => ({}));
+        throw new Error(details.error || "Unable to load admin analytics.");
+      }
       const requests = await requestsResponse.json();
       const totals = await analyticsResponse.json();
       analytics.innerHTML = [["Total", totals.total], ["Pending", totals.pending], ["In progress", totals.inProgress], ["Resolved", totals.resolved]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");

@@ -16,7 +16,11 @@ async function db(path, options = {}) {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("CONFIGURATION");
   const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${path}`, { ...options, headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json", Prefer: "return=representation", ...(options.headers || {}) } });
   const body = await response.json().catch(() => null);
-  if (!response.ok) throw new Error("DATABASE");
+  if (!response.ok) {
+    const error = new Error("DATABASE");
+    error.details = body?.message || body?.hint || body?.details || "Database request failed.";
+    throw error;
+  }
   return body;
 }
 

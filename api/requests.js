@@ -52,7 +52,7 @@ module.exports = async function handler(request, response) {
   try {
     const user = await getUser(request);
     if (request.method === "GET") {
-      const rows = await supabaseRequest(`service_requests?select=id,reference,category,title,status,created_at&user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc&limit=50`);
+      const rows = await supabaseRequest(`service_requests?select=id,reference,category,title,description,location,phone,status,priority,department,image_url,image_urls,feedback_rating,feedback_comment,created_at&user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc&limit=50`);
       return response.status(200).json(rows);
     }
     if (request.method !== "POST") return response.status(405).json({ error: "Method not allowed." });
@@ -62,6 +62,10 @@ module.exports = async function handler(request, response) {
       return response.status(400).json({ error: "Please complete all required fields." });
     }
     const values = Object.fromEntries(requiredFields.map((field) => [field, data[field].trim()]));
+    const priorities = ["Low", "Normal", "High", "Emergency"];
+    const departments = ["General services", "Roads and transport", "Water and sanitation", "Street lighting", "Waste management", "Health services"];
+    if (data.priority && !priorities.includes(data.priority)) return response.status(400).json({ error: "Choose a valid priority." });
+    if (data.department && !departments.includes(data.department)) return response.status(400).json({ error: "Choose a valid department." });
     if (values.title.length > 80 || values.description.length > 500) {
       return response.status(400).json({ error: "The title or description is too long." });
     }
@@ -69,9 +73,12 @@ module.exports = async function handler(request, response) {
     const imageUrls = await uploadImages(data.images || (data.image ? [data.image] : []), reference);
     const rows = await supabaseRequest("service_requests", {
       method: "POST",
-      body: JSON.stringify({ ...values, reference, status: "Pending", user_id: user.id, image_url: imageUrls[0] || null, image_urls: imageUrls })
+      body: JSON.stringify({ ...values, reference, status: "Pending", priority: data.priority || "Normal", department: data.department || "General services", user_id: user.id, image_url: imageUrls[0] || null, image_urls: imageUrls })
     });
     const created = rows[0];
+    await supabaseRequest("request_status_history", { method: "POST", body: JSON.stringify({ request_id: created.id, changed_by: user.id, previous_status: null, new_status: "Pending", note: "Request submitted" }) });
+    await supabaseRequest("notifications", { method: "POST", body: JSON.stringify({ user_id: user.id, audience: "citizen", request_id: created.id, title: "Request submitted", message: `${created.reference} has been received.` }) });
+    await supabaseRequest("notifications", { method: "POST", body: JSON.stringify({ audience: "admin", request_id: created.id, title: "New service request", message: `${created.reference} needs review.` }) });
     return response.status(201).json({
       id: created.id,
       reference: created.reference,

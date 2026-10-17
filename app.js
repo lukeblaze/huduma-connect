@@ -96,10 +96,41 @@ function renderRequests(requests) {
 
 function showRequestModal(request) {
   const images = request.image_urls || (request.image_url ? [request.image_url] : []);
-  modalContent.innerHTML = `<p class="modal-reference">${escapeHtml(request.reference)} · ${escapeHtml(formatDate(request.created_at))}</p><p>${escapeHtml(request.description || "No description provided.")}</p><div class="modal-meta"><span><b>Category</b>${escapeHtml(request.category)}</span><span><b>Location</b>${escapeHtml(request.location)}</span><span><b>Status</b>${escapeHtml(request.status || "Pending")}</span></div>${images.length ? `<div class="modal-gallery">${images.map((url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="Uploaded request evidence"></a>`).join("")}</div>` : "<p class=\"muted\">No images attached.</p>"}`;
+  modalContent.innerHTML = `<p class="modal-reference">${escapeHtml(request.reference)} · ${escapeHtml(formatDate(request.created_at))}</p><p>${escapeHtml(request.description || "No description provided.")}</p><div class="modal-meta"><span><b>Category</b>${escapeHtml(request.category)}</span><span><b>Location</b>${escapeHtml(request.location)}</span><span><b>Status</b>${escapeHtml(request.status || "Pending")}</span><span><b>Priority</b>${escapeHtml(request.priority || "Normal")}</span><span><b>Department</b>${escapeHtml(request.department || "General services")}</span></div><div id="history-timeline" class="history-timeline"><span class="muted">Loading timeline...</span></div>${request.status === "Resolved" && !request.feedback_rating ? `<form id="feedback-form" class="feedback-form"><h3>How was the service?</h3><label for="feedback-rating">Rating</label><select id="feedback-rating" required><option value="">Choose a rating</option><option value="5">5 - Excellent</option><option value="4">4 - Good</option><option value="3">3 - Okay</option><option value="2">2 - Poor</option><option value="1">1 - Very poor</option></select><label for="feedback-comment">Comment (optional)</label><textarea id="feedback-comment" rows="2" maxlength="500" placeholder="Tell us how we did"></textarea><button class="button button-primary" type="submit">Send feedback</button><div id="feedback-message" class="form-message" hidden></div></form>` : request.feedback_rating ? `<p class="feedback-saved">You rated this service ${escapeHtml(request.feedback_rating)}/5.</p>` : ""}${images.length ? `<div class="modal-gallery">${images.map((url) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="Uploaded request evidence"></a>`).join("")}</div>` : "<p class=\"muted\">No images attached.</p>"}`;
   document.querySelector("#modal-title").textContent = request.title;
   modal.hidden = false;
   document.querySelector("#modal-close").focus();
+  loadHistory(request.id);
+  const feedbackForm = document.querySelector("#feedback-form");
+  if (feedbackForm) feedbackForm.addEventListener("submit", (event) => submitFeedback(event, request.id));
+}
+
+async function loadHistory(requestId) {
+  const target = document.querySelector("#history-timeline");
+  try {
+    const response = await fetch(`/api/history?requestId=${encodeURIComponent(requestId)}`, { headers: { Authorization: `Bearer ${session.access_token}` } });
+    if (!response.ok) throw new Error("Timeline unavailable.");
+    const history = await response.json();
+    target.innerHTML = history.map((item) => `<div class="history-item"><span></span><div><strong>${escapeHtml(item.new_status)}</strong><p>${escapeHtml(item.note || "")} · ${escapeHtml(formatDate(item.created_at))}</p></div></div>`).join("") || '<span class="muted">No status history yet.</span>';
+  } catch (error) {
+    target.innerHTML = `<span class="muted">${escapeHtml(error.message)}</span>`;
+  }
+}
+
+async function submitFeedback(event, requestId) {
+  event.preventDefault();
+  const feedbackMessage = document.querySelector("#feedback-message");
+  const form = event.currentTarget;
+  const response = await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ requestId, rating: form.querySelector("#feedback-rating").value, comment: form.querySelector("#feedback-comment").value }) });
+  const result = await response.json().catch(() => ({}));
+  feedbackMessage.hidden = false;
+  feedbackMessage.className = response.ok ? "form-message" : "form-message form-error";
+  feedbackMessage.textContent = result.error || "Thank you for your feedback.";
+  if (response.ok) {
+    showToast("Feedback saved");
+    form.remove();
+    await loadRequests();
+  }
 }
 
 function showToast(text) {
@@ -110,13 +141,9 @@ function showToast(text) {
 }
 
 function renderNotifications(requests, isAdmin = false) {
-  const notifications = requests.map((request) => ({
-    title: isAdmin ? `New request: ${request.title}` : `Request ${request.reference} updated`,
-    text: isAdmin ? `${request.category} request from ${request.location}.` : `Your request is currently ${request.status || "Pending"}.`,
-    status: request.status || "Pending"
-  }));
+  const notifications = requests;
   notificationCount.textContent = `${notifications.length} update${notifications.length === 1 ? "" : "s"}`;
-  notificationList.innerHTML = notifications.length ? notifications.map((item) => `<article class="notification-item"><span class="notification-icon">●</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.text)}</p></div><span class="request-status">${escapeHtml(item.status)}</span></article>`).join("") : '<div class="empty-state"><h3>No new notifications</h3><p>Updates about your requests will appear here.</p></div>';
+  notificationList.innerHTML = notifications.length ? notifications.map((item) => `<article class="notification-item ${item.is_read ? "read" : ""}"><span class="notification-icon">●</span><div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.message || item.text)}</p><small>${escapeHtml(formatDate(item.created_at))}</small></div></article>`).join("") : '<div class="empty-state"><h3>No new notifications</h3><p>Updates about your requests will appear here.</p></div>';
 }
 
 function formatDate(value) {
@@ -136,7 +163,8 @@ async function loadRequests() {
     if (!response.ok) throw new Error("Unable to load requests.");
     const requests = await response.json();
     renderRequests(requests);
-    if (!isAdminSession()) renderNotifications(requests);
+    const notificationResponse = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${session.access_token}` } });
+    if (notificationResponse.ok) renderNotifications(await notificationResponse.json());
   } catch (error) {
     list.innerHTML = `<div class="empty-state"><span class="empty-icon">!</span><h3>Requests are temporarily unavailable</h3><p>${escapeHtml(error.message)} Please refresh and try again.</p></div>`;
   }
@@ -162,7 +190,8 @@ async function loadAdmin() {
       const requests = await requestsResponse.json();
       adminRequests = requests;
       const totals = await analyticsResponse.json();
-      renderNotifications(requests, true);
+      const notificationResponse = await fetch("/api/notifications", { headers });
+      if (notificationResponse.ok) renderNotifications(await notificationResponse.json(), true);
       analytics.innerHTML = [["Total", totals.total], ["Pending", totals.pending], ["In progress", totals.inProgress], ["Resolved", totals.resolved]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
       renderAdminRequests();
     } catch (error) {
@@ -182,16 +211,16 @@ function renderAdminRequests() {
       adminList.innerHTML = requests.length ? requests.map((request) => `
         <article class="admin-row">
           <div class="admin-details"><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.phone)} · ${escapeHtml(request.reference)}</p><p class="admin-description">${escapeHtml(request.description)}</p><div class="admin-links">${(request.image_urls || (request.image_url ? [request.image_url] : [])).map((url, index) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">View image ${index + 1}</a>`).join(" ") || "<span>No images attached</span>"}</div></div>
-          <select data-request-id="${request.id}" aria-label="Update status for ${escapeHtml(request.title)}">
+          <div class="admin-controls"><select data-request-id="${request.id}" data-field="status" aria-label="Update status for ${escapeHtml(request.title)}">
             ${["Pending", "In Progress", "Resolved"].map((status) => `<option ${status === request.status ? "selected" : ""}>${status}</option>`).join("")}
-          </select>
+          </select><select data-request-id="${request.id}" data-field="priority" aria-label="Update priority for ${escapeHtml(request.title)}">${["Low", "Normal", "High", "Emergency"].map((priority) => `<option ${priority === (request.priority || "Normal") ? "selected" : ""}>${priority}</option>`).join("")}</select><select data-request-id="${request.id}" data-field="department" aria-label="Assign department for ${escapeHtml(request.title)}">${["General services", "Roads and transport", "Water and sanitation", "Street lighting", "Waste management", "Health services"].map((department) => `<option ${department === (request.department || "General services") ? "selected" : ""}>${department}</option>`).join("")}</select></div>
         </article>`).join("") : '<div class="empty-state"><h3>No submitted requests</h3><p>New citizen requests will appear here.</p></div>';
-      adminList.querySelectorAll("select").forEach((select) => select.addEventListener("change", () => updateStatus(select.dataset.requestId, select.value)));
+      adminList.querySelectorAll("select").forEach((select) => select.addEventListener("change", () => updateStatus(select.dataset.requestId, select.value, select.dataset.field)));
 }
 
-async function updateStatus(id, status) {
+async function updateStatus(id, value, field = "status") {
     try {
-      const response = await fetch(`/api/admin/requests?id=${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ status }) });
+      const response = await fetch(`/api/admin/requests?id=${encodeURIComponent(id)}`, { method: "PATCH", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ [field]: value }) });
       if (!response.ok) throw new Error("Unable to update request status.");
       await loadAdmin();
       await loadRequests();
@@ -258,6 +287,8 @@ form.addEventListener("submit", async (event) => {
         description: document.querySelector("#description").value.trim(),
         location: document.querySelector("#location").value.trim(),
         phone: document.querySelector("#phone").value.trim(),
+        priority: document.querySelector("#priority").value,
+        department: document.querySelector("#department").value,
         images: await readImages()
       })
     });

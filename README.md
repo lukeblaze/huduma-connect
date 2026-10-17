@@ -20,6 +20,9 @@ For the database, create a Supabase project, open its SQL editor, and run [`supa
 - Recent-request tracking from the Supabase database
 - Vercel serverless API at `/api/requests`
 - Accessible labels, navigation, and status messaging
+- Persistent notifications stored in Supabase
+- Request priority and department assignment
+- Status history timeline and citizen feedback ratings
 - No frontend build step or third-party runtime dependencies
 
 ## Vercel environment variables
@@ -31,7 +34,7 @@ Add these variables in Vercel Project Settings → Environment Variables:
 - `SUPABASE_ANON_KEY` — your Supabase anon/public key (safe for browser authentication)
 - `ADMIN_EMAIL` — the exact email address of the administrator account
 
-Run the updated [`supabase-schema.sql`](./supabase-schema.sql) again after pulling this version. It adds user ownership and Row Level Security policies. In Supabase Authentication → Providers, enable Email. For the fastest demo, you may disable email confirmation; otherwise users must confirm their email before signing in.
+Run the updated [`supabase-schema.sql`](./supabase-schema.sql) again after pulling this version. It adds user ownership, priorities, departments, persistent notifications, status history, feedback fields, and Row Level Security policies. In Supabase Authentication → Providers, enable Email. For the fastest demo, you may disable email confirmation; otherwise users must confirm their email before signing in.
 
 The admin dashboard is shown automatically when the signed-in email matches `ADMIN_EMAIL`. The admin can review every request, read full descriptions, open every uploaded image, change status, and see live totals. Both administrators and citizens also see in-app notifications based on new requests and request status. The landing page includes a visual “How it works” section with community-focused stock photography.
 

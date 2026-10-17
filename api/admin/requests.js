@@ -29,7 +29,7 @@ module.exports = async function handler(request, response) {
     const user = await userFromToken(request);
     requireAdmin(user);
     if (request.method === "GET") {
-      const rows = await db("service_requests?select=id,user_id,reference,category,title,description,location,phone,status,image_url,image_urls,created_at&order=created_at.desc&limit=200");
+      const rows = await db("service_requests?select=id,user_id,reference,category,title,description,location,phone,status,image_url,created_at&order=created_at.desc&limit=200");
       return response.status(200).json(rows);
     }
     if (request.method !== "PATCH") return response.status(405).json({ error: "Method not allowed." });

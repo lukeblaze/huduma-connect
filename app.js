@@ -52,6 +52,21 @@ function isAdminSession() {
     session.user.email.trim().toLowerCase() === config.adminEmail.trim().toLowerCase());
 }
 
+async function validateSession() {
+  if (!session?.access_token || !config?.url || !config?.anonKey) return null;
+  const response = await fetch(`${config.url}/auth/v1/user`, {
+    headers: { apikey: config.anonKey, Authorization: `Bearer ${session.access_token}` }
+  });
+  if (!response.ok) {
+    setAuthState(null);
+    return null;
+  }
+  const user = await response.json();
+  session.user = user;
+  localStorage.setItem("huduma-session", JSON.stringify(session));
+  return session;
+}
+
 function renderRequests(requests) {
   count.textContent = `${requests.length} request${requests.length === 1 ? "" : "s"}`;
   if (!requests.length) {
@@ -255,6 +270,7 @@ document.querySelector("#refresh-admin").addEventListener("click", loadAdmin);
 configReady = getConfig().then((value) => {
   config = value;
   if (!config.url || !config.anonKey) throw new Error("Authentication configuration is incomplete.");
+  await validateSession();
   setAuthState(session);
   loadRequests();
 }).catch((error) => {

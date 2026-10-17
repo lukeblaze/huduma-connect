@@ -93,7 +93,7 @@ async function loadRequests() {
       analytics.innerHTML = [["Total", totals.total], ["Pending", totals.pending], ["In progress", totals.inProgress], ["Resolved", totals.resolved]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
       adminList.innerHTML = requests.length ? requests.map((request) => `
         <article class="admin-row">
-          <div><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.reference)} · ${escapeHtml(request.email || "")}</p>${request.image_url ? `<a href="${escapeHtml(request.image_url)}" target="_blank" rel="noopener">View image</a>` : ""}</div>
+          <div><h3>${escapeHtml(request.title)}</h3><p>${escapeHtml(request.category)} · ${escapeHtml(request.location)} · ${escapeHtml(request.phone)} · ${escapeHtml(request.reference)}</p>${request.image_url ? `<a href="${escapeHtml(request.image_url)}" target="_blank" rel="noopener">View image</a>` : ""}</div>
           <select data-request-id="${request.id}" aria-label="Update status for ${escapeHtml(request.title)}">
             ${["Pending", "In Progress", "Resolved"].map((status) => `<option ${status === request.status ? "selected" : ""}>${status}</option>`).join("")}
           </select>

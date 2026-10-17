@@ -15,8 +15,8 @@ create table if not exists public.service_requests (
 alter table public.service_requests enable row level security;
 alter table public.service_requests add column if not exists user_id uuid references auth.users(id);
 alter table public.service_requests add column if not exists image_url text;
-update public.service_requests set status = 'Pending' where status = 'Received';
 alter table public.service_requests drop constraint if exists service_requests_status_check;
+update public.service_requests set status = 'Pending' where status = 'Received';
 alter table public.service_requests add constraint service_requests_status_check check (status in ('Pending', 'In Progress', 'Resolved'));
 
 insert into storage.buckets (id, name, public) values ('request-images', 'request-images', true) on conflict (id) do nothing;
